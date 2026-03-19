@@ -16,7 +16,13 @@ const app = express();
 // ============================================
 
 const corsOptions = {
-  origin: ['http://localhost:5173','https://vasudev-project.vercel.app/', 'http://127.0.0.1:5173', process.env.CORS_ORIGIN].filter(Boolean),
+  origin: [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'https://vasudev-project.vercel.app',
+    'https://vasudev-project.vercel.app/',
+    process.env.CORS_ORIGIN
+  ].filter(Boolean),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
