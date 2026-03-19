@@ -7,6 +7,7 @@ import videoRoutes from './routes/videoRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import { errorHandler } from './middleware/auth.js';
 import requestLogger from './middleware/logger.js';
+import connectDB from './config/database.js';
 
 // Initialize Express app
 const app = express();
@@ -35,6 +36,17 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Request logging middleware
 app.use(requestLogger);
+
+// Database connection middleware for Serverless (Vercel)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error('Database connection failed in middleware:', error);
+    res.status(503).json({ success: false, message: 'Service Unavailable - Database connection failed' });
+  }
+});
 
 // ============================================
 // PUBLIC ROUTES
