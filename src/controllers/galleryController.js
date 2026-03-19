@@ -29,7 +29,7 @@ export const uploadImage = async (req, res, next) => {
       size: req.file.size
     });
 
-    const { title, category } = req.body;
+    const { title, category, description } = req.body;
 
     // Upload to Cloudinary from buffer
     console.log('[UPLOAD] Starting Cloudinary upload stream...');
@@ -61,6 +61,7 @@ export const uploadImage = async (req, res, next) => {
       imageUrl: cloudinaryResult.secure_url,
       publicId: cloudinaryResult.public_id,
       title: title || null,
+      description: description || null,
       category: category || 'All'
     });
 
@@ -76,6 +77,7 @@ export const uploadImage = async (req, res, next) => {
         imageUrl: galleryImage.imageUrl,
         publicId: galleryImage.publicId,
         title: galleryImage.title,
+        description: galleryImage.description,
         createdAt: galleryImage.createdAt
       }
     });
@@ -110,7 +112,7 @@ export const getImages = async (req, res, next) => {
     // Fetch all images sorted by creation date (latest first)
     const images = await Gallery.find()
       .sort({ createdAt: -1 })
-      .select('_id imageUrl title category createdAt');
+      .select('_id imageUrl title description category createdAt');
 
     return res.status(200).json({
       success: true,
@@ -210,27 +212,16 @@ export const getImageById = async (req, res, next) => {
 };
 
 /**
- * Update image title
+ * Update gallery item
  * 
- * Allows admin to update image title/description
+ * Allows admin to update image, title, and category
  */
-export const updateImageTitle = async (req, res, next) => {
+export const updateGalleryItem = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title } = req.body;
+    const { title, category, description } = req.body;
 
-    if (!title) {
-      return res.status(400).json({
-        success: false,
-        message: 'Title is required'
-      });
-    }
-
-    const image = await Gallery.findByIdAndUpdate(
-      id,
-      { title },
-      { new: true, runValidators: true }
-    );
+    const image = await Gallery.findById(id);
 
     if (!image) {
       return res.status(404).json({
@@ -239,14 +230,69 @@ export const updateImageTitle = async (req, res, next) => {
       });
     }
 
+    let updatedData = { 
+      title: title !== undefined ? title : image.title, 
+      description: description !== undefined ? description : image.description,
+      category: category !== undefined ? category : image.category 
+    };
+
+    if (req.file) {
+      // Delete old image from Cloudinary
+      try {
+        await cloudinary.uploader.destroy(image.publicId);
+      } catch (cloudinaryError) {
+        console.warn(`Warning: Could not delete from Cloudinary: ${cloudinaryError.message}`);
+      }
+
+      // Upload new image
+      const uploadPromise = new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'vasudev-gallery',
+            resource_type: 'auto'
+          },
+          (error, result) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(result);
+            }
+          }
+        );
+        uploadStream.end(req.file.buffer);
+      });
+
+      const cloudinaryResult = await uploadPromise;
+      updatedData.imageUrl = cloudinaryResult.secure_url;
+      updatedData.publicId = cloudinaryResult.public_id;
+    }
+
+    const updatedImage = await Gallery.findByIdAndUpdate(
+      id,
+      updatedData,
+      { new: true, runValidators: true }
+    );
+
     return res.status(200).json({
       success: true,
-      message: 'Image title updated successfully',
-      image
+      message: 'Gallery item updated successfully',
+      image: updatedImage
     });
 
   } catch (error) {
-    console.error('Update image error:', error.message);
-    next(error);
+    console.error('Update gallery item error:', error.message);
+    
+    // Parse error string safely
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'object' 
+        ? JSON.stringify(error) 
+        : String(error);
+
+    return res.status(error.statusCode || error.http_code || 500).json({
+      success: false,
+      message: errorMessage || 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
   }
 };

@@ -18,8 +18,15 @@ const gallerySchema = new mongoose.Schema(
       trim: true
     },
 
-    // Optional title/description
+    // Optional title
     title: {
+      type: String,
+      trim: true,
+      default: null
+    },
+
+    // Optional description/content
+    description: {
       type: String,
       trim: true,
       default: null

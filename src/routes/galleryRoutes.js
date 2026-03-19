@@ -6,7 +6,7 @@ import {
   getImages,
   deleteImage,
   getImageById,
-  updateImageTitle
+  updateGalleryItem
 } from '../controllers/galleryController.js';
 
 const router = express.Router();
@@ -52,13 +52,15 @@ router.delete(
 
 /**
  * PUT /api/gallery/:id
- * Update image title (admin only)
+ * Update gallery item (admin only)
  * Protected: Admin only
+ * Middleware: upload.single('image')
  */
 router.put(
   '/:id',
   authenticateAdmin,
-  updateImageTitle
+  upload.single('image'),
+  updateGalleryItem
 );
 
 export default router;
